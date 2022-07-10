@@ -1,0 +1,8 @@
+alertmanager:
+  addr: 127.0.0.1:9003
+  api: /api/v2/alerts
+push:
+  oms:
+    addr: http://oms-url
+app:
+  http_addr: 0.0.0.0:9008

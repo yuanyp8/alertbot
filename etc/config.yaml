@@ -1,0 +1,10 @@
+alertmanager:
+  addr: 127.0.0.1:9003
+  api: /api/v2/alerts
+push:
+  oms:
+    addr: http://117.132.184.53:9005/room/pushToRobot?robotKey=1742c7f913a24505b91d00ead705e712&msg=
+app:
+  http_addr: 0.0.0.0:9008
+  # TODO
+  # scrape_interval: 2m
