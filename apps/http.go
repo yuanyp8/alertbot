@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/yuanyp8/alertbot/alert"
 	"github.com/yuanyp8/alertbot/post"
@@ -16,15 +17,18 @@ func (h *Handler) Registry(r gin.IRouter) {
 }
 
 func (h *Handler) Post(c *gin.Context) {
-	ret := make([]*alert.Alert, 0, 300)
-	if err := c.Bind(ret); err != nil {
-		//
+	ret := alert.NewNotification()
+	if err := c.BindJSON(ret); err != nil {
+
 		if err := post.Post("alert metrics parse failed"); err != nil {
+			fmt.Println("----------")
 			log.Fatalf("alert metrics push failed, error: %s", err)
 		}
 	}
-	for i, _ := range ret {
-		if err := post.Post(ret[i].ToString()); err != nil {
+	slc := ret.ToString()
+	for i, _ := range slc {
+		if err := post.Post(slc[i]); err != nil {
+			fmt.Println("++++++++")
 			log.Fatalf("alert metrics push failed, error: %s", err)
 		}
 	}
