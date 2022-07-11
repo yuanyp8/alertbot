@@ -1,124 +1,111 @@
 package alert
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/yuanyp8/alertbot/conf"
-	"io/ioutil"
-	"net/http"
+	"strings"
 	"time"
 )
 
+type Notification struct {
+	Version           string            `json:"version"`
+	GroupKey          string            `json:"groupKey"`
+	Status            string            `json:"status"`
+	Receiver          string            `json:receiver`
+	GroupLabels       map[string]string `json:groupLabels`
+	CommonLabels      map[string]string `json:commonLabels`
+	CommonAnnotations map[string]string `json:commonAnnotations`
+	ExternalURL       string            `json:externalURL`
+	Alerts            []*Alert          `json:alerts`
+}
+
+func NewNotification() *Notification {
+	return &Notification{
+		GroupLabels:       make(map[string]string),
+		CommonLabels:      make(map[string]string),
+		CommonAnnotations: make(map[string]string),
+		Alerts:            make([]*Alert, 0, 20),
+	}
+}
+
 type Alert struct {
-	Annotations  *Annotations `json:"annotations"`
-	EndsAt       time.Time    `json:"endsAt"`
-	Fingerprint  string       `json:"fingerprint"`
-	Receivers    []*Receiver  `json:"receivers"`
-	StartsAt     time.Time    `json:"startsAt"`
-	Status       *Status      `json:"status"`
-	UpdatedAt    time.Time    `json:"updatedAt"`
-	GeneratorURL string       `json:"generatorURL"`
-	Labels       *Labels      `json:"labels"`
+	Annotations  *Annotations      `json:"annotations"`
+	EndsAt       time.Time         `json:"endsAt"`
+	Fingerprint  string            `json:"fingerprint"`
+	StartsAt     time.Time         `json:"startsAt"`
+	Status       string            `json:"status"`
+	UpdatedAt    time.Time         `json:"updatedAt"`
+	GeneratorURL string            `json:"generatorURL"`
+	Labels       map[string]string `json:"labels"`
 }
-type Status struct {
-	InhibitedBy []interface{} `json:"inhibitedBy"`
-	SilencedBy  []interface{} `json:"silencedBy"`
-	State       string        `json:"state"`
-}
-type Receiver struct {
-	Name string `json:"name"`
-}
+
 type Annotations struct {
 	Description string `json:"description"`
 	Summary     string `json:"summary"`
 }
 
-type Labels struct {
-	Agent        string `json:"agent,omitempty"`
-	Alertname    string `json:"alertname"`
-	Dc           string `json:"dc,omitempty"`
-	Device       string `json:"device,omitempty"`
-	Env          string `json:"env,omitempty"`
-	Fstype       string `json:"fstype,omitempty"`
-	Hostname     string `json:"hostname,omitempty"`
-	Instance     string `json:"instance,omitempty"`
-	Job          string `json:"job,omitempty"`
-	Mountpoint   string `json:"mountpoint,omitempty"`
-	Severity     string `json:"severity"`
-	Type         string `json:"type,omitempty"`
-	ExportedType string `json:"exported_type,omitempty"`
-	Name         string `json:"name,omitempty"`
-	State        string `json:"state,omitempty"`
-}
-
 func NewAnnotations() *Annotations {
 	return &Annotations{}
-}
-func NewLabels() *Labels {
-	return &Labels{}
-}
-
-func NewReceiver() *Receiver {
-	return &Receiver{}
-}
-
-func NewStatus() *Status {
-	return &Status{}
 }
 
 func NewAlert() *Alert {
 	return &Alert{
 		Annotations: NewAnnotations(),
-		Labels:      NewLabels(),
-		Receivers:   make([]*Receiver, 0, 100),
-		Status:      NewStatus(),
+		Labels:      make(map[string]string),
 	}
 }
 
-func Get() ([]byte, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", conf.C().AlertManager.HttpAddr(), nil)
+//func Get() ([]byte, error) {
+//	client := &http.Client{}
+//	req, err := http.NewRequest("GET", conf.C().AlertManager.HttpAddr(), nil)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	response, err := client.Do(req)
+//	defer response.Body.Close()
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return ioutil.ReadAll(response.Body)
+//}
 
-	if err != nil {
-		return nil, err
+//func Unmarshal(data []byte) (*Notification, error) {
+//	ret := NewNotification()
+//	fmt.Println("1111")
+//	if err := json.Unmarshal(data, &ret); err != nil {
+//		return nil, err
+//	}
+//	fmt.Println("1111222")
+//	return ret, nil
+//
+//}
+
+//func GetAlert() (*Notification, error) {
+//	data, err := Get()
+//	if err != nil {
+//		return nil, err
+//	}
+//	return Unmarshal(data)
+//}
+
+func (a *Notification) ToString() []string {
+	re := make([]string, 0, 100)
+
+	for _, v := range a.Alerts {
+		dd := fmt.Sprintf("STATE: %s\nALERT_NAME: %s\nSUMMARY: %s\nSTART_AT: %v\nLABEL: %s\n", a.Status, a.CommonLabels["alertname"], v.Annotations.Summary, v.StartsAt, v.LabelToString())
+
+		re = append(re, dd)
 	}
-
-	response, err := client.Do(req)
-	defer response.Body.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return ioutil.ReadAll(response.Body)
+	return re
 }
 
-func Unmarshal(data []byte) ([]*Alert, error) {
-	ret := make([]*Alert, 0, 300)
-	if err := json.Unmarshal(data, &ret); err != nil {
-		return nil, err
+func (aa *Alert) LabelToString() string {
+	build := strings.Builder{}
+	for k, v := range aa.Labels {
+		build.WriteString(fmt.Sprintf("\n%s=%s", k, v))
 	}
-	return ret, nil
-
-}
-
-func GetAlert() ([]*Alert, error) {
-	data, err := Get()
-	if err != nil {
-		return nil, err
-	}
-	return Unmarshal(data)
-}
-
-func (a *Alert) ToString() string {
-	return fmt.Sprintf("STATE: %s\nSUMMARY: %s\nSTART_AT: %v\nGENERATOR_URL: %s\n\nLABEL: %s", a.Status.State, a.Annotations.Summary, a.StartsAt, a.GeneratorURL, a.Labels.ToString())
-}
-
-func (l *Labels) ToString() string {
-	data, err := json.Marshal(l)
-	if err != nil {
-		return "Label Parse Failed"
-	}
-
-	return string(data)
+	return build.String()
 }
